@@ -4,436 +4,494 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
     
-    <!-- SEO Meta Tags -->
-    <title>Analisis Teknis Qilin Ransomware - EDR-Killer & BYOVD Detection</title>
-    <meta name="description" content="Dashboard investigasi keamanan siber untuk mendeteksi modul EDR-Killer Qilin Ransomware menggunakan teknik BYOVD. Panduan teknis untuk SentinelOne & CrowdStrike.">
-    <meta name="keywords" content="Qilin Ransomware, EDR-Killer, BYOVD, SentinelOne, CrowdStrike, Cyber Security Indonesia, Threat Intelligence">
+    <!-- SEO & META TAGS -->
+    <title>Investigasi Qilin EDR-Killer | Malware Analys</title>
+    <meta name="description" content="Dashboard teknis analisis malware Qilin Ransomware dan modul EDR-Killer. Strategi mitigasi BYOVD untuk Security Engineer.">
+    <meta name="keywords" content="Qilin Ransomware, EDR-Killer, BYOVD, SentinelOne, CrowdStrike, Cyber Security Indonesia, Threat Hunting">
     <meta name="author" content="Security Engineer Lab">
-    <meta name="robots" content="index, follow">
-
-    <!-- Geo Tags -->
+    
+    <!-- GEO TAGS -->
     <meta name="geo.region" content="ID-SN">
-    <meta name="geo.placename" content="North Sulawesi">
+    <meta name="geo.placename" content="Manado, North Sulawesi">
     <meta name="geo.position" content="1.4748;124.8421">
     <meta name="ICBM" content="1.4748, 124.8421">
 
-    <!-- Open Graph / Facebook -->
-    <meta property="og:type" content="website">
-    <meta property="og:title" content="Qilin Ransomware: Strategi Defensif & EDR-Killer Analysis">
-    <meta property="og:description" content="Analisis mendalam alur kerja malware Qilin dan mitigasi taktis pada sistem EDR.">
-    <meta property="og:image" content="https://blog.talosintelligence.com/content/images/2024/08/Qilin-EDR-Killer-Logo.png">
+    <!-- OPEN GRAPH -->
+    <meta property="og:title" content="Qilin EDR-Killer Investigation Dashboard">
+    <meta property="og:description" content="Analisis alur kerja malware Qilin dan mitigasi taktis pada sistem EDR modern.">
+    <meta property="og:type" content="article">
 
-    <!-- Tailwind CSS & Libraries -->
+    <!-- LIBRARIES -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap');
-        
         :root {
-            --brand-red: #dc2626;
-            --brand-slate: #0f172a;
+            --primary: #3b82f6;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --dark-bg: #0f172a;
+            --surface: #ffffff;
+            --card-bg: rgba(255, 255, 255, 0.7);
         }
 
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
             background-color: #f8fafc;
-            color: #0f172a;
+            color: var(--dark-bg);
+            margin: 0;
             overflow-x: hidden;
         }
 
         .mono { font-family: 'JetBrains Mono', monospace; }
-        
-        /* Responsive Container */
-        .chart-container {
-            position: relative;
-            width: 100%;
-            height: 250px;
-            margin: auto;
+
+        /* Consistent Glassmorphism */
+        .bento-card {
+            background: var(--surface);
+            border: 1px solid #e2e8f0;
+            border-radius: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .bento-card:hover {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Kill Chain Stepper */
+        .step-active {
+            background: #ffffff;
+            border-left: 4px solid var(--danger);
         }
         @media (min-width: 768px) {
-            .chart-container { height: 300px; }
+            .step-active {
+                border-left: none;
+                border-bottom: 4px solid var(--danger);
+            }
         }
 
-        .code-block {
-            background-color: #020617;
-            color: #38bdf8;
-            padding: 1rem;
-            border-radius: 0.75rem;
-            font-size: 0.7rem;
+        /* Button Consistency */
+        .btn-interact {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .btn-interact.active {
+            background-color: var(--danger) !important;
+            color: #ffffff !important;
+            border-color: var(--danger) !important;
+            box-shadow: 0 10px 15px -3px rgba(239, 68, 68, 0.3);
+        }
+
+        /* Mermaid Responsive Wrapper */
+        .mermaid-container {
+            width: 100%;
             overflow-x: auto;
-            border: 1px solid #1e293b;
-            line-height: 1.5;
+            background: white;
+            padding: 1.5rem;
+            border-radius: 1rem;
         }
 
-        .ioc-btn {
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .ioc-btn.active {
-            background-color: var(--brand-red) !important;
-            color: white !important;
-            border-color: var(--brand-red) !important;
-            transform: scale(1.02);
-        }
+        /* Hide scrollbars but keep functionality */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-        .edr-tab.active {
-            border-bottom: 3px solid #2563eb;
-            color: #2563eb;
-            font-weight: 700;
-        }
-
-        .card-shadow {
-            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
-        }
-
-        /* Mermaid Mobile Adjustment */
-        .mermaid-card {
-            background: #ffffff;
-            border-radius: 1.25rem;
-            padding: 1rem;
-            border: 1px solid #e2e8f0;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-        }
-
-        /* Responsive Text */
-        @media (max-width: 640px) {
-            h1 { font-size: 1.1rem !important; }
-            h2 { font-size: 1.25rem !important; }
-            .text-xs-mobile { font-size: 0.7rem !important; }
+        /* SEO Overlay for text */
+        .seo-gradient {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
         }
     </style>
 </head>
 <body class="antialiased">
 
-    <!-- Header (V1-V3 Hybrid) -->
-    <nav class="bg-slate-950 text-white p-4 sticky top-0 z-50 shadow-2xl border-b border-red-900/20">
-        <div class="container mx-auto flex justify-between items-center">
+    <!-- Header Section -->
+    <header class="sticky top-0 z-[100] bg-white/80 backdrop-blur-md border-b border-slate-200">
+        <div class="container mx-auto px-4 h-16 sm:h-20 flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <div class="p-2 bg-red-600 rounded-lg font-black text-lg sm:text-xl shadow-lg shadow-red-600/20">Q</div>
+                <div class="w-10 h-10 sm:w-12 sm:h-12 bg-slate-900 rounded-2xl flex items-center justify-center shadow-lg">
+                    <span class="text-white font-black text-xl">Q</span>
+                </div>
                 <div>
-                    <h1 class="text-sm sm:text-base font-bold leading-none tracking-tight">Qilin EDR-Killer Lab</h1>
-                    <p class="text-[9px] text-slate-400 uppercase tracking-widest mt-1 font-semibold">Technical Investigation Hub</p>
+                    <h1 class="text-sm sm:text-lg font-extrabold tracking-tight">QILIN SUMMARY</h1>
+                    <p class="text-[9px] sm:text-[10px] text-slate-500 uppercase font-bold tracking-widest">Summary Malware</p>
                 </div>
             </div>
-            <div class="flex gap-2 items-center">
-                <div class="hidden sm:flex flex-col items-end text-[10px]">
-                    <span class="text-slate-500 font-bold uppercase">Security Status</span>
-                    <span class="text-red-500 font-bold">BYOVD ALERT ACTIVE</span>
+            <div class="flex items-center gap-3 sm:gap-6">
+                <div class="hidden md:block text-[10px] text-right">
+                    <span class="text-slate-400 font-bold uppercase block">Last Update</span>
+                    <span class="text-slate-900 font-bold">4 April 2026</span>
                 </div>
-                <div class="sm:hidden w-2 h-2 bg-red-500 rounded-full animate-ping"></div>
+                <div class="bg-red-500 text-white px-3 py-1 rounded-full text-[9px] font-black animate-pulse">
+                    LIVE INCIDENT
+                </div>
             </div>
         </div>
-    </nav>
+    </header>
 
-    <main class="container mx-auto px-4 py-6 sm:py-8 max-w-6xl">
+    <main class="container mx-auto px-4 py-6 sm:py-10 space-y-8 max-w-7xl">
         
-        <!-- Section 1: Executive Briefing & Identity (Mobile First Grid) -->
-        <section class="bg-white rounded-2xl sm:rounded-3xl p-6 sm:p-8 card-shadow border border-slate-200 mb-6 sm:mb-8 overflow-hidden relative">
-            <div class="absolute top-0 right-0 w-24 h-24 bg-red-50 rounded-bl-full -z-0 opacity-40"></div>
-            <div class="relative z-10">
-                <h2 class="text-xl sm:text-2xl font-bold text-slate-900 mb-4 flex items-center gap-2">
-                    <span class="text-blue-600">📌</span> Executive Briefing
+        <!-- Section 1: Executive Bento Grid (Identity Focus) -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <!-- Strategic Briefing -->
+            <div class="lg:col-span-8 bento-card p-6 sm:p-8 relative overflow-hidden">
+                <div class="absolute top-0 right-0 p-8 opacity-5">
+                    <svg class="w-40 h-40" fill="currentColor" viewBox="0 0 20 20"><path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"></path><path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"></path></svg>
+                </div>
+                <h2 class="text-xl sm:text-2xl font-black mb-6 flex items-center gap-3">
+                    <span class="p-2 bg-blue-600 text-white rounded-xl shadow-lg shadow-blue-200">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    </span>
+                    Executive Briefing
                 </h2>
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
-                    <div class="text-sm text-slate-600 leading-relaxed space-y-4">
-                        <p>
-                            Qilin Ransomware menyasar <strong>Identity</strong> sebagai pintu masuk utama melalui <b>VPN/RDP</b>. Visibilitas akun domain menjadi faktor penentu keberhasilan mitigasi.
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
+                    <div class="space-y-4">
+                        <p class="text-sm text-slate-600 leading-relaxed font-medium">
+                            Qilin Ransomware menargetkan <strong>Identity</strong> melalui <b>VPN & RDP</b>. Visibilitas aktivitas akun adalah prioritas tertinggi sebelum mitigasi teknis di tingkat kernel dilakukan.
                         </p>
-                        <p class="p-4 bg-amber-50 rounded-xl border-l-4 border-amber-400 text-amber-900 font-medium italic text-xs-mobile">
-                            "Identity adalah faktor penentu. Pastikan visibilitas aktivitas akun dan pembatasan akses remote diutamakan."
-                        </p>
+                        <div class="p-4 bg-amber-50 rounded-2xl border-l-4 border-amber-500 shadow-sm">
+                            <p class="text-[11px] text-amber-900 font-bold italic leading-relaxed">
+                                "Identity is the new perimeter. Monitor account anomalies before EDR silence occurs."
+                            </p>
+                        </div>
                     </div>
-                    <div class="bg-slate-50 p-4 sm:p-6 rounded-2xl border border-slate-200">
-                        <h4 class="text-[10px] font-bold text-slate-400 uppercase mb-4 tracking-widest">Incident Probability</h4>
-                        <div class="space-y-4">
-                            <div class="flex justify-between items-center text-[11px] font-bold">
-                                <span>Credential Access</span>
-                                <span class="text-red-600">85%</span>
-                            </div>
-                            <div class="w-full bg-slate-200 rounded-full h-1.5">
-                                <div class="bg-red-600 h-1.5 rounded-full" style="width: 85%"></div>
-                            </div>
-                            <div class="flex justify-between items-center text-[11px] font-bold">
-                                <span>Policy Visibility</span>
-                                <span class="text-amber-600">30%</span>
-                            </div>
-                            <div class="w-full bg-slate-200 rounded-full h-1.5">
-                                <div class="bg-amber-500 h-1.5 rounded-full" style="width: 30%"></div>
-                            </div>
+                    <!-- Distribution Chart -->
+                    <div class="bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
+                        <h4 class="text-[10px] font-black text-slate-400 uppercase mb-4 tracking-widest">Initial Vector Probability</h4>
+                        <div class="h-[150px]">
+                            <canvas id="vectorChart"></canvas>
                         </div>
                     </div>
                 </div>
             </div>
+
+            <!-- Quick Pulse Radar -->
+            <div class="lg:col-span-4 bento-card p-6 flex flex-col justify-between seo-gradient text-white shadow-2xl">
+                <div>
+                    <h3 class="text-xs font-black text-slate-400 uppercase tracking-[0.3em] mb-6">Threat Status</h3>
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between p-4 bg-white/10 rounded-2xl border border-white/5">
+                            <span class="text-xs font-bold">Priority</span>
+                            <span class="text-xs font-black text-red-400">CRITICAL</span>
+                        </div>
+                        <div class="flex items-center justify-between p-4 bg-white/10 rounded-2xl border border-white/5">
+                            <span class="text-xs font-bold">Technique</span>
+                            <span class="text-xs font-black text-blue-400 uppercase">BYOVD</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-8">
+                    <a href="#ioc-section" class="block w-full bg-white text-slate-950 py-4 rounded-2xl text-center text-xs font-black hover:bg-blue-50 transition shadow-xl">
+                        EXPLORE IOC DATA
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 2: Kill Chain Visualization (Responsive Stepper) -->
+        <section class="space-y-6">
+            <h2 class="text-xl font-black flex items-center gap-3">
+                <span class="text-danger">⚡</span> Kill Chain Visibilitas
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <!-- Access -->
+                <div class="bento-card p-6 text-center group hover:bg-blue-50 transition-colors">
+                    <span class="text-[10px] font-black text-blue-500 uppercase tracking-widest">Step 01</span>
+                    <div class="text-3xl my-3 group-hover:scale-110 transition-transform">🔑</div>
+                    <h4 class="font-extrabold text-sm uppercase">Access</h4>
+                    <p class="text-[10px] text-slate-500 mt-1 font-medium">Credential Leak via VPN/RDP</p>
+                </div>
+                <!-- Execution -->
+                <div class="bento-card p-6 text-center group hover:bg-slate-50 transition-colors">
+                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Step 02</span>
+                    <div class="text-3xl my-3 group-hover:scale-110 transition-transform">🏗️</div>
+                    <h4 class="font-extrabold text-sm uppercase">Execution</h4>
+                    <p class="text-[10px] text-slate-500 mt-1 font-medium">Sideloading msimg32.dll</p>
+                </div>
+                <!-- Kernel -->
+                <div class="bento-card p-6 text-center group bg-amber-50 border-amber-200 hover:bg-amber-100 transition-colors">
+                    <span class="text-[10px] font-black text-amber-600 uppercase tracking-widest">Step 03</span>
+                    <div class="text-3xl my-3 group-hover:scale-110 transition-transform">🔓</div>
+                    <h4 class="font-extrabold text-sm uppercase text-amber-900">Kernel</h4>
+                    <p class="text-[10px] text-amber-700 mt-1 font-medium">BYOVD Exploit (rwdrv.sys)</p>
+                </div>
+                <!-- Impact -->
+                <div class="bento-card p-6 text-center group bg-red-600 border-red-700 text-white shadow-xl shadow-red-200">
+                    <span class="text-[10px] font-black text-red-200 uppercase tracking-widest">Step 04</span>
+                    <div class="text-3xl my-3 group-hover:scale-110 transition-transform">💀</div>
+                    <h4 class="font-extrabold text-sm uppercase">Impact</h4>
+                    <p class="text-[10px] text-red-100 mt-1 font-medium">EDR Silence & Encryption</p>
+                </div>
+            </div>
         </section>
 
-        <!-- Section 1.5: Mermaid Workflow (Responsive Scroll) -->
-        <section class="bg-white rounded-2xl sm:rounded-3xl p-6 sm:p-8 card-shadow border border-slate-200 mb-6 sm:mb-8">
-            <h2 class="text-lg sm:text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
-                <span class="text-red-600 text-xl">📊</span> Operation Workflow
+        <!-- Section 3: Operational Workflow (Mermaid Fix) -->
+        <section class="bento-card p-6 sm:p-8 space-y-6">
+            <h2 class="text-xl font-black flex items-center gap-3">
+                <span class="text-blue-500">📊</span> Operational Workflow Diagram
             </h2>
-            <div class="mermaid-card">
+            <div class="mermaid-container no-scrollbar">
                 <div class="mermaid">
                     graph LR
-                    ID[Identity Breach<br/>VPN/RDP] --> EX[Execution<br/>DLL Sideload]
-                    EX --> EK[EDRKiller.exe<br/>Orchestrator]
-                    EK --> BV[BYOVD Exploit<br/>rwdrv.sys]
-                    BV --> KN[Kernel Ring 0<br/>Access]
-                    KN --> TM[EDR Killed<br/>Silence S1/CS]
-                    TM --> RC[Ransomware<br/>Encryption]
+                    A[Identity Compromise] --> B[DLL Sideloading]
+                    B --> C[Orchestrator Exec]
+                    C --> D[BYOVD Driver Load]
+                    D --> E[Bypass PPL/EDR Kill]
+                    E --> F[Full System Encryption]
 
-                    style ID fill:#f1f5f9,stroke:#64748b
-                    style EK fill:#fee2e2,stroke:#ef4444
-                    style KN fill:#7f1d1d,stroke:#000,color:#fff
-                    style TM fill:#000,stroke:#ef4444,color:#fff
+                    style A fill:#f1f5f9,stroke:#3b82f6,stroke-width:2px
+                    style D fill:#fef3c7,stroke:#f59e0b,stroke-width:2px
+                    style E fill:#fee2e2,stroke:#ef4444,stroke-width:2px,color:#7f1d1d
+                    style F fill:#0f172a,stroke:#000,color:#fff
                 </div>
             </div>
-            <p class="text-[10px] text-slate-400 mt-4 text-center italic">Representasi alur teknis Qilin (Source: Talos & Analisis IoC).</p>
+            <p class="text-[10px] text-center text-slate-400 font-bold uppercase tracking-widest">Source: Talos Intelligence & Analisis Forensik</p>
         </section>
 
-        <!-- Section 2: Kill Chain Visualization -->
-        <section class="bg-white rounded-2xl sm:rounded-3xl p-6 sm:p-8 card-shadow border border-slate-200 mb-6 sm:mb-8 overflow-x-auto">
-            <h2 class="text-lg sm:text-xl font-bold mb-6 flex items-center gap-2"><span>🛡️</span> Kill Chain Visibilitas</h2>
-            <div class="flex flex-col sm:flex-row items-stretch gap-2 min-w-[600px] sm:min-w-0">
-                <div class="flex-1 bg-slate-50 p-4 rounded-xl border border-slate-200 text-center">
-                    <div class="text-[10px] font-bold text-slate-400 uppercase mb-2">Access</div>
-                    <div class="text-xl mb-1">🔑</div>
-                    <h5 class="text-[11px] font-bold">Compromised Identity</h5>
-                </div>
-                <div class="hidden sm:flex items-center text-slate-200">➔</div>
-                <div class="flex-1 bg-slate-50 p-4 rounded-xl border border-slate-200 text-center">
-                    <div class="text-[10px] font-bold text-slate-400 uppercase mb-2">Execution</div>
-                    <div class="text-xl mb-1">🏗️</div>
-                    <h5 class="text-[11px] font-bold">Payload Drop</h5>
-                </div>
-                <div class="hidden sm:flex items-center text-slate-200">➔</div>
-                <div class="flex-1 bg-amber-50 p-4 rounded-xl border border-amber-200 text-center">
-                    <div class="text-[10px] font-bold text-amber-500 uppercase mb-2">Kernel</div>
-                    <div class="text-xl mb-1">🔓</div>
-                    <h5 class="text-[11px] font-bold text-amber-800">BYOVD Exploit</h5>
-                </div>
-                <div class="hidden sm:flex items-center text-slate-200">➔</div>
-                <div class="flex-1 bg-red-600 p-4 rounded-xl text-white text-center">
-                    <div class="text-[10px] font-bold opacity-70 uppercase mb-2">Impact</div>
-                    <div class="text-xl mb-1">💀</div>
-                    <h5 class="text-[11px] font-bold">EDR Silence</h5>
-                </div>
+        <!-- Section 4: Indicator Deep-Dive (Responsive Fix) -->
+        <section id="ioc-section" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <!-- Sidebar Nav -->
+            <div class="lg:col-span-4 flex flex-row lg:flex-col gap-3 overflow-x-auto lg:overflow-visible pb-4 lg:pb-0 no-scrollbar">
+                <button id="btn-msimg32" class="ioc-btn btn-interact active min-w-[140px] lg:w-full flex items-center justify-between p-5 rounded-2xl bento-card text-[11px] font-black uppercase tracking-tight" onclick="showIoc('msimg32')">
+                    <span>🧩 msimg32.dll</span>
+                </button>
+                <button id="btn-rwdrv" class="ioc-btn btn-interact min-w-[140px] lg:w-full flex items-center justify-between p-5 rounded-2xl bento-card text-[11px] font-black uppercase tracking-tight" onclick="showIoc('rwdrv')">
+                    <span>🔧 rwdrv.sys</span>
+                </button>
+                <button id="btn-hlpdrv" class="ioc-btn btn-interact min-w-[140px] lg:w-full flex items-center justify-between p-5 rounded-2xl bento-card text-[11px] font-black uppercase tracking-tight" onclick="showIoc('hlpdrv')">
+                    <span>🔧 hlpdrv.sys</span>
+                </button>
+                <button id="btn-edrkiller" class="ioc-btn btn-interact min-w-[140px] lg:w-full flex items-center justify-between p-5 rounded-2xl bento-card text-[11px] font-black uppercase tracking-tight" onclick="showIoc('edrkiller')">
+                    <span>☢️ EDRKiller.exe</span>
+                </button>
             </div>
-        </section>
-
-        <!-- Section 3: Interactive IOC Analysis (Mobile Friendly) -->
-        <section class="bg-white rounded-2xl sm:rounded-3xl p-6 sm:p-8 card-shadow border border-slate-200 mb-6 sm:mb-8">
-            <h2 class="text-lg sm:text-xl font-bold text-slate-900 mb-6 border-b pb-4 tracking-tight">Indikator Kompromi (IOC)</h2>
-            <div class="flex flex-col lg:flex-row gap-6">
-                <!-- Selectors (Scrollable on Mobile) -->
-                <div class="flex lg:flex-col gap-2 overflow-x-auto pb-2 lg:pb-0 lg:w-1/3 no-scrollbar">
-                    <button id="btn-msimg32" class="ioc-btn active px-4 py-3 rounded-xl border border-slate-200 bg-white text-[11px] font-bold whitespace-nowrap lg:w-full text-left" onclick="showIocData('msimg32')">🧩 msimg32.dll</button>
-                    <button id="btn-rwdrv" class="ioc-btn px-4 py-3 rounded-xl border border-slate-200 bg-white text-[11px] font-bold whitespace-nowrap lg:w-full text-left" onclick="showIocData('rwdrv')">🔧 rwdrv.sys</button>
-                    <button id="btn-hlpdrv" class="ioc-btn px-4 py-3 rounded-xl border border-slate-200 bg-white text-[11px] font-bold whitespace-nowrap lg:w-full text-left" onclick="showIocData('hlpdrv')">🔧 hlpdrv.sys</button>
-                    <button id="btn-edrkiller" class="ioc-btn px-4 py-3 rounded-xl border border-slate-200 bg-white text-[11px] font-bold whitespace-nowrap lg:w-full text-left" onclick="showIocData('edrkiller')">☢️ EDRKiller.exe</button>
+            <!-- Detail Panel -->
+            <div class="lg:col-span-8 bg-slate-950 rounded-[2rem] p-6 sm:p-10 shadow-2xl relative overflow-hidden border border-slate-800">
+                <div class="absolute top-0 right-0 p-10 opacity-5 text-blue-500">
+                    <svg class="w-40 h-40" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
                 </div>
-                <!-- Display Panel -->
-                <div class="w-full lg:w-2/3 bg-slate-950 rounded-2xl sm:rounded-3xl p-5 sm:p-8 text-blue-300 mono text-[10px] sm:text-[11px] shadow-2xl border border-slate-800">
-                    <div class="flex justify-between items-start mb-4">
-                        <h3 id="panel-title" class="text-sm font-bold text-white tracking-widest uppercase">MSIMG32.DLL</h3>
-                        <span id="panel-badge" class="bg-blue-600/20 text-blue-400 border border-blue-500/30 px-2 py-0.5 rounded-full text-[9px] font-bold">VALIDATED</span>
+                <div class="relative z-10">
+                    <div class="flex flex-col sm:flex-row justify-between items-start gap-4 mb-6">
+                        <div>
+                            <h3 id="panel-title" class="text-2xl sm:text-3xl font-black text-white uppercase tracking-tighter">MSIMG32.DLL</h3>
+                            <div id="panel-badge" class="mt-2 inline-block px-3 py-1 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-full text-[9px] font-black uppercase tracking-widest">Sideload Component</div>
+                        </div>
                     </div>
-                    <div class="space-y-4 leading-relaxed">
-                        <p id="panel-desc" class="text-slate-400 italic">Indikator ini digunakan untuk teknik DLL Side-loading sebagai pembuka eksekusi.</p>
-                        <div class="pt-4 border-t border-slate-800 space-y-2">
-                            <div class="flex flex-col gap-1">
-                                <span class="text-slate-600 font-bold">MD5:</span>
-                                <span id="panel-md5" class="text-slate-300 break-all">89ee7235906f7d12737679860264feaf</span>
-                            </div>
-                            <div class="flex flex-col gap-1 pt-2">
-                                <span class="text-slate-600 font-bold">SHA256:</span>
-                                <span id="panel-sha256" class="text-blue-400 break-all">7787da25451f5538766240f4a8a2846d0a589c59391e15f188aa077e8b888497</span>
-                            </div>
+                    <p id="panel-desc" class="text-sm text-slate-400 leading-relaxed mb-8 max-w-xl font-medium">Indikator ini digunakan untuk teknik DLL Side-loading sebagai pembuka eksekusi di Ring 3 sistem Windows.</p>
+                    
+                    <div class="grid grid-cols-1 gap-4">
+                        <div class="p-4 bg-slate-900/80 rounded-2xl border border-slate-800 hover:border-blue-500 transition-colors">
+                            <span class="text-[9px] font-black text-slate-500 uppercase mb-1 block tracking-widest">MD5 SIGNATURE</span>
+                            <span id="panel-md5" class="mono text-[10px] sm:text-xs text-blue-300 break-all tracking-tight">89ee7235906f7d12737679860264feaf</span>
+                        </div>
+                        <div class="p-4 bg-slate-900/80 rounded-2xl border border-slate-800 hover:border-blue-500 transition-colors">
+                            <span class="text-[9px] font-black text-slate-500 uppercase mb-1 block tracking-widest">SHA-256 SIGNATURE</span>
+                            <span id="panel-sha256" class="mono text-[10px] sm:text-xs text-blue-400 font-bold break-all tracking-tighter">7787da25451f5538766240f4a8a2846d0a589c59391e15f188aa077e8b888497</span>
                         </div>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- Section 4: Threat Intel Blogs (Grid Responsive) -->
-        <section class="bg-white rounded-2xl sm:rounded-3xl p-6 sm:p-8 card-shadow border border-slate-200 mb-6 sm:mb-8">
-            <h2 class="text-lg sm:text-xl font-bold text-slate-900 mb-2 flex items-center gap-2"><span>🌐</span> Technical Intel Hub</h2>
-            <p class="text-[10px] text-slate-400 uppercase font-bold tracking-widest mb-6">6 Verified Technical Resources</p>
-            
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <a href="https://blog.talosintelligence.com/qilin-edr-killer/" target="_blank" class="p-4 bg-slate-50 rounded-xl border border-slate-200 hover:border-blue-500 transition-all text-left">
-                    <span class="text-[8px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded uppercase">Talos</span>
-                    <h4 class="text-xs font-bold mt-2 mb-1">Qilin EDR-Killer Deep Dive</h4>
-                    <p class="text-[10px] text-slate-500 leading-snug">Bedah teknis Talos mengenai modul pemutus EDR Ransomware Qilin.</p>
+        <!-- Section 5: Threat Intel Reference (Card Grid) -->
+        <section class="space-y-6">
+            <h2 class="text-xl font-black flex items-center gap-3">
+                <span class="text-blue-600">🌐</span> Threat Intel Reference
+            </h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                <!-- Talos -->
+                <a href="https://blog.talosintelligence.com/qilin-edr-killer/" target="_blank" class="bento-card p-6 hover:shadow-2xl transition-all group">
+                    <span class="bg-blue-100 text-blue-600 text-[9px] font-black px-2 py-1 rounded">TALOS INTELLIGENCE</span>
+                    <h4 class="text-sm font-extrabold mt-3 group-hover:text-blue-600 transition tracking-tighter">Qilin: EDR-Killer Analysis</h4>
+                    <p class="text-[10px] text-slate-500 leading-relaxed mt-2">Bedah teknis mengenai modul pemutus EDR yang dikembangkan oleh operator Qilin.</p>
                 </a>
-                <a href="https://cybersecuritynews.com/qilin-ransomware-kill-edr/" target="_blank" class="p-4 bg-slate-50 rounded-xl border border-slate-200 hover:border-red-500 transition-all text-left">
-                    <span class="text-[8px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded uppercase">CyberNews</span>
-                    <h4 class="text-xs font-bold mt-2 mb-1">Qilin Kill EDR Sensor</h4>
-                    <p class="text-[10px] text-slate-500 leading-snug">Laporan kampanye Qilin baru yang menyasar admin IT via BYOVD.</p>
+                <!-- Cybersecurity News -->
+                <a href="https://cybersecuritynews.com/qilin-ransomware-kill-edr/" target="_blank" class="bento-card p-6 hover:shadow-2xl transition-all group">
+                    <span class="bg-red-100 text-red-600 text-[9px] font-black px-2 py-1 rounded">CYBERNEWS ALERTS</span>
+                    <h4 class="text-sm font-extrabold mt-3 group-hover:text-red-600 transition tracking-tighter">Qilin Ransomware Kill Sensor</h4>
+                    <p class="text-[10px] text-slate-500 leading-relaxed mt-2">Laporan kampanye Qilin baru yang menyasar admin IT melalui teknik BYOVD.</p>
                 </a>
-                <a href="https://www.sentinelone.com/labs/living-off-the-land-drivers-the-new-normal-for-e-crime/" target="_blank" class="p-4 bg-slate-900 rounded-xl border border-slate-800 text-white transition-all text-left">
-                    <span class="text-[8px] font-bold text-purple-400 bg-purple-900/40 px-2 py-0.5 rounded uppercase">S1 Labs</span>
-                    <h4 class="text-xs font-bold mt-2 mb-1 text-blue-400">Living Off Drivers (BYOVD)</h4>
-                    <p class="text-[10px] text-slate-500 italic">S1 Guide for Support Technicians.</p>
-                </a>
-                <a href="https://www.bleepingcomputer.com/news/security/new-qilin-ransomware-variant-kills-edr-antivirus-processes/" target="_blank" class="p-4 bg-slate-50 rounded-xl border border-slate-200 hover:border-slate-800 transition-all text-left">
-                    <span class="text-[8px] font-bold text-slate-700 bg-slate-200 px-2 py-0.5 rounded uppercase">BleepingComp.</span>
-                    <h4 class="text-xs font-bold mt-2 mb-1">Qilin Variant Analysis</h4>
-                    <p class="text-[10px] text-slate-500 leading-snug">Berita mengenai exploit bypass kernel yang mematikan callback keamanan.</p>
-                </a>
-                <a href="https://news.sophos.com/en-us/2023/04/19/bring-your-own-vulnerable-driver-attacks-on-the-rise/" target="_blank" class="p-4 bg-slate-50 rounded-xl border border-slate-200 hover:border-green-600 transition-all text-left">
-                    <span class="text-[8px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded uppercase">Sophos</span>
-                    <h4 class="text-xs font-bold mt-2 mb-1">BYOVD Attack Rise</h4>
-                    <p class="text-[10px] text-slate-500 leading-snug">Forensik pemutusan sensor EDR oleh malware berbasis Rust/Go.</p>
-                </a>
-                <a href="https://www.virustotal.com/gui/file/12fcde06ddadf1b48a61b12596e6286316fd33e850687fe4153dfd9383f0a4a0" target="_blank" class="p-4 bg-slate-50 rounded-xl border border-slate-200 hover:border-orange-600 transition-all text-left">
-                    <span class="text-[8px] font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded uppercase">VirusTotal</span>
-                    <h4 class="text-xs font-bold mt-2 mb-1">Live Scan Validation</h4>
-                    <p class="text-[10px] text-slate-500 leading-snug">Hasil pemindaian live tervalidasi oleh vendor tier-1 global.</p>
+                <!-- SentinelLabs -->
+                <a href="https://www.sentinelone.com/labs/living-off-the-land-drivers-the-new-normal-for-e-crime/" target="_blank" class="bento-card p-6 bg-slate-900 border-slate-800 text-white hover:shadow-2xl transition-all group">
+                    <span class="bg-blue-600 text-white text-[9px] font-black px-2 py-1 rounded">SENTINELLABS GUIDE</span>
+                    <h4 class="text-sm font-extrabold mt-3 text-white group-hover:text-blue-400 transition tracking-tight">Living Off Drivers (BYOVD)</h4>
+                    <p class="text-[10px] text-slate-400 leading-relaxed mt-2 italic">Official S1 Specialist Guide for Threat Detection.</p>
                 </a>
             </div>
         </section>
 
-        <!-- Section 5: Tactical Remediation Hub (Tabs Responsive) -->
-        <section class="bg-slate-900 rounded-2xl sm:rounded-3xl shadow-2xl p-6 sm:p-8 text-white relative overflow-hidden mb-6 sm:mb-8">
-            <h2 class="text-xl sm:text-2xl font-bold mb-6 flex items-center gap-3">
-                <span class="bg-blue-600 p-2 rounded-xl text-lg">🛡️</span> Remediation Hub
+        <!-- Section 6: Tactical Mitigation Hub (Remediation) -->
+        <section id="mitigation-hub" class="bento-card p-6 sm:p-10 seo-gradient text-white relative overflow-hidden shadow-2xl">
+            <h2 class="text-2xl font-black mb-8 flex items-center gap-4">
+                <span class="bg-blue-600 p-3 rounded-2xl text-lg shadow-lg">🛡️</span> Remediation Hub
             </h2>
 
-            <!-- Mobile Select Tabs -->
-            <div class="flex gap-4 border-b border-slate-700 mb-6 overflow-x-auto pb-1 no-scrollbar">
-                <button onclick="switchEdr('s1')" id="tab-s1" class="edr-tab active pb-2 text-[10px] uppercase tracking-widest font-bold whitespace-nowrap">S1 (Technician)</button>
-                <button onclick="switchEdr('cs')" id="tab-cs" class="edr-tab pb-2 text-[10px] uppercase tracking-widest font-bold text-slate-500 whitespace-nowrap">CS (Mandatory)</button>
-                <button onclick="switchEdr('ms')" id="tab-ms" class="edr-tab pb-2 text-[10px] uppercase tracking-widest font-bold text-slate-500 whitespace-nowrap">Defender</button>
+            <div class="flex gap-4 border-b border-white/10 mb-8 overflow-x-auto pb-1 no-scrollbar">
+                <button onclick="switchTab('s1')" id="tab-s1" class="edr-tab active pb-4 text-[10px] sm:text-xs uppercase font-black whitespace-nowrap tracking-widest">SentinelOne</button>
+                <button onclick="switchTab('cs')" id="tab-cs" class="edr-tab pb-4 text-[10px] sm:text-xs uppercase font-black text-slate-400 whitespace-nowrap tracking-widest">CrowdStrike</button>
+                <button onclick="switchTab('ms')" id="tab-ms" class="edr-tab pb-4 text-[10px] sm:text-xs uppercase font-black text-slate-400 whitespace-nowrap tracking-widest">Defender</button>
             </div>
 
-            <!-- Content SentinelOne -->
-            <div id="edr-s1" class="space-y-6">
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div class="bg-slate-800/50 p-5 rounded-2xl border border-slate-700">
-                        <h4 class="text-blue-400 font-bold text-[9px] mb-3 uppercase tracking-widest">Policy Implementation</h4>
-                        <ul class="text-[10px] space-y-3 text-slate-300">
-                            <li>• <b>Anti-Tamper:</b> "Strict/On" (Cegah terminasi agent).</li>
-                            <li>• <b>Kernel AI:</b> Aktifkan mode "Protect" pada driver engine.</li>
-                        </ul>
-                    </div>
-                    <div class="bg-slate-800/50 p-5 rounded-2xl border border-slate-700">
-                        <h4 class="text-blue-400 font-bold text-[9px] mb-3 uppercase tracking-widest">Deep Visibility Query</h4>
-                        <div class="code-block">
+            <!-- Content S1 -->
+            <div id="content-s1" class="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-fade-in">
+                <div class="bg-white/5 p-6 rounded-3xl border border-white/10">
+                    <h4 class="text-blue-400 font-black text-[10px] mb-4 uppercase tracking-widest">Policy Enforcement</h4>
+                    <ul class="text-[11px] space-y-4 font-medium">
+                        <li>• <b class="text-white">Anti-Tamper:</b> Wajib "Strict/On" (Cegah terminasi agent).</li>
+                        <li>• <b class="text-white">Kernel Protection:</b> Mode "Protect" pada Driver Engine.</li>
+                        <li>• <b class="text-white">Blacklist:</b> Global import SHA256 <i>EDRKiller.exe</i>.</li>
+                    </ul>
+                </div>
+                <div class="bg-white/5 p-6 rounded-3xl border border-white/10">
+                    <h4 class="text-blue-400 font-black text-[10px] mb-4 uppercase tracking-widest">S1QL Deep Visibility</h4>
+                    <div class="code-block mono">
 IndicatorName = "VulnerableDriverLoaded" OR File.Name Contains "rwdrv"
+                    </div>
+                </div>
+            </div>
+
+            <!-- Content CS (Boss Requirement) -->
+            <div id="content-cs" class="hidden animate-fade-in">
+                <div class="bg-red-900/10 p-6 sm:p-8 rounded-3xl border border-red-500/20">
+                    <h4 class="text-red-400 font-black text-xs mb-4 uppercase tracking-widest">Instruction Manual</h4>
+                    <p class="text-sm text-slate-200 mb-6 italic leading-relaxed">"CS udah ada IOA untuk prevent BYOVD, pastikan enable settingan vulnerable driver protection di prevention policy."</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="p-4 bg-slate-950/50 rounded-2xl border border-white/5">
+                            <span class="text-[9px] font-black text-red-500 block mb-2 uppercase">Prevention</span>
+                            <p class="text-[11px] font-bold">Vulnerable Driver Protection: ENABLED</p>
+                        </div>
+                        <div class="p-4 bg-slate-950/50 rounded-2xl border border-white/5">
+                            <span class="text-[9px] font-black text-red-500 block mb-2 uppercase">Detection</span>
+                            <p class="text-[11px] mono">event_simpleName=DriverLoad AND FileName="rwdrv.sys"</p>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Content CrowdStrike -->
-            <div id="edr-cs" class="hidden space-y-4">
-                <div class="bg-red-900/20 p-5 rounded-2xl border border-red-900/40">
-                    <h4 class="text-red-400 font-bold text-[10px] mb-3 uppercase">Prevention Policy</h4>
-                    <p class="text-[10px] text-slate-300 mb-3 italic">"CS udah ada IOA untuk prevent BYOVD, pastikan enable settingan vulnerable driver protection."</p>
-                    <ul class="text-[10px] space-y-2 text-slate-300 bg-slate-950/40 p-3 rounded-xl">
-                        <li>• <b>Policy:</b> Aktifkan <b>Vulnerable Driver Protection</b>.</li>
-                        <li>• <b>Anti-Tamper:</b> Set ke level "Aggressive".</li>
-                    </ul>
-                </div>
-            </div>
-
-            <!-- Content MS Defender -->
-            <div id="edr-ms" class="hidden space-y-4">
-                <div class="bg-slate-800/50 p-5 rounded-2xl border border-slate-700">
-                    <h4 class="text-blue-300 font-bold text-[9px] mb-3 uppercase">KQL Hunt</h4>
-                    <div class="code-block">
+            <!-- Content MS -->
+            <div id="content-ms" class="hidden animate-fade-in">
+                <div class="bg-white/5 p-6 rounded-3xl border border-white/10">
+                    <h4 class="text-blue-300 font-black text-[10px] mb-4 uppercase tracking-widest uppercase">Advanced Hunting</h4>
+                    <div class="code-block mono">
 DeviceImageLoadEvents | where FileName =~ "rwdrv.sys"
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- Section 6: Identity & Proactive Hunting -->
-        <section class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <div class="bg-white rounded-2xl sm:rounded-3xl p-6 sm:p-8 card-shadow border border-slate-200">
-                <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
-                    <span class="p-2 bg-indigo-100 text-indigo-600 rounded-lg text-sm">👤</span> Identity Visibility
+        <!-- Final Section: Strategic Pillars -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-20">
+            <!-- Identity -->
+            <div class="bento-card p-6 sm:p-8">
+                <h3 class="text-lg font-black mb-4 flex items-center gap-3">
+                    <span class="p-2 bg-indigo-100 text-indigo-600 rounded-xl text-sm italic font-bold">Identity</span>
                 </h3>
-                <p class="text-[10px] text-slate-500 mb-4 italic">"Visibility thd account activity dan pembatasan login."</p>
-                <ul class="text-[11px] space-y-2 text-slate-600">
-                    <li class="p-3 bg-slate-50 rounded-xl border border-slate-100 font-semibold">• Batasi RDP Login hanya via Domain Admin Group.</li>
-                    <li class="p-3 bg-slate-50 rounded-xl border border-slate-100 font-semibold">• MFA Wajib pada VPN & Remote Access.</li>
-                </ul>
-            </div>
-            <div class="bg-white rounded-2xl sm:rounded-3xl p-6 sm:p-8 card-shadow border border-slate-200">
-                <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
-                    <span class="p-2 bg-green-100 text-green-600 rounded-lg text-sm">🔍</span> Proactive Hunting
-                </h3>
-                <p class="text-[10px] text-slate-500 mb-4 italic">"Pantau file yang dieksekusi, jangan tunggu deteksi."</p>
                 <div class="space-y-3">
-                    <div class="p-3 bg-slate-900 text-green-400 rounded-xl font-mono text-[9px] border-l-4 border-green-600">
-                        # Scan AppData for suspicious .sys files<br/>
-                        hunt --path C:\Users\*\AppData\ --ext .sys
+                    <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center gap-4">
+                        <div class="w-2 h-2 bg-indigo-600 rounded-full"></div>
+                        <span class="text-[11px] font-bold text-slate-700 uppercase">Restrict RDP Login (Domain Admin Only)</span>
+                    </div>
+                    <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center gap-4">
+                        <div class="w-2 h-2 bg-indigo-600 rounded-full"></div>
+                        <span class="text-[11px] font-bold text-slate-700 uppercase">MFA Enforce on VPN/Remote Access</span>
                     </div>
                 </div>
             </div>
-        </section>
+            <!-- Proactive Hunting -->
+            <div class="bento-card p-6 sm:p-8">
+                <h3 class="text-lg font-black mb-4 flex items-center gap-3">
+                    <span class="p-2 bg-green-100 text-green-600 rounded-xl text-sm italic font-bold">Hunting</span>
+                </h3>
+                <div class="p-5 bg-slate-900 text-green-400 rounded-2xl font-mono text-[10px] border-l-4 border-green-500 shadow-inner leading-relaxed">
+                    # Audit suspicious .sys in Temp/AppData<br/>
+                    hunt --path C:\Users\*\AppData\ --ext .sys<br/>
+                    # Monitor msimg32 sideload outside System32<br/>
+                    monitor --load msimg32.dll --exclude C:\Windows\System32
+                </div>
+            </div>
+        </div>
 
     </main>
 
-    <!-- Footer (V2.2 Maintained) -->
-    <footer class="container mx-auto px-6 py-10 border-t border-slate-200 text-center text-slate-400 text-[9px] uppercase tracking-widest font-bold">
-        Qilin Summary Dashboard &copy; 2026 | Salman Mustapa | Gemini AI Generate
+    <!-- Professional Footer -->
+    <footer class="bg-slate-950 text-white py-16">
+        <div class="container mx-auto px-4 text-center">
+            <div class="mb-6 opacity-30">
+                <div class="w-12 h-12 bg-white rounded-2xl mx-auto flex items-center justify-center">
+                    <span class="text-slate-950 font-black text-2xl">Q</span>
+                </div>
+            </div>
+            <p class="text-[10px] font-black uppercase tracking-[0.5em] mb-4 text-slate-500">Threat Intelligence Terminal</p>
+            <p class="text-xs text-slate-600 max-w-md mx-auto leading-relaxed px-4">
+                Dikembangkan khusus analisis bersama. Validasi data berbasis analisis malware Qilin dari berbagai artikel.
+            </p>
+            <div class="mt-8 pt-8 border-t border-slate-900 text-[10px] text-slate-700 font-black uppercase tracking-[0.2em]">
+                ID-SN: NORTH SULAWESI | SALMAN MUSTAPA | SECURITY ENGINEERING
+            </div>
+        </div>
     </footer>
 
     <script>
-        // Mermaid Initialization with responsive settings
-        mermaid.initialize({ 
-            startOnLoad: true, 
-            theme: 'neutral',
-            flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' },
-            securityLevel: 'loose'
-        });
+        // Mermaid Init
+        mermaid.initialize({ startOnLoad: true, theme: 'neutral', flowchart: { curve: 'basis' }});
 
-        // IOC Data (4 Indicators)
+        // Charts Init
+        window.onload = function() {
+            const ctx = document.getElementById('vectorChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['VPN Access', 'RDP Compromise', 'Sideloading'],
+                    datasets: [{
+                        data: [50, 35, 15],
+                        backgroundColor: ['#3b82f6', '#ef4444', '#f59e0b'],
+                        borderWidth: 0,
+                        hoverOffset: 10
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    cutout: '80%'
+                }
+            });
+            showIoc('msimg32');
+        };
+
         const iocData = {
             'msimg32': {
                 title: 'msimg32.dll',
-                badge: 'DLL SIDELOAD / HIJACK',
+                badge: 'Sideload Component',
                 desc: 'Entry point awal. File palsu diletakkan di folder aplikasi sah untuk memicu rantai eksekusi malware Qilin.',
                 md5: '89ee7235906f7d12737679860264feaf',
                 sha256: '7787da25451f5538766240f4a8a2846d0a589c59391e15f188aa077e8b888497'
             },
             'rwdrv': {
                 title: 'rwdrv.sys',
-                badge: 'BYOVD EXPLOIT',
-                desc: 'Driver sah RWEverything yang dieksploitasi (CVE-2018-12587). Memberikan akses tulis ke memori Kernel.',
+                badge: 'BYOVD Driver',
+                desc: 'Driver sah RWEverything yang dieksploitasi (CVE-2018-12587). Memberikan akses tulis ke memori Kernel untuk membungkam EDR.',
                 md5: '6bc8e3505d9f51368ddf323acb6abc49',
                 sha256: '16f83f056177c4ec24c7e99d01ca9d9d6713bd0497eeedb777a3ffefa99c97f0'
             },
             'hlpdrv': {
                 title: 'hlpdrv.sys',
-                badge: 'SYSTEM HELPER',
-                desc: 'Driver pendukung tambahan untuk menstabilkan eksploitasi kernel atau memanipulasi registry.',
+                badge: 'Helper System',
+                desc: 'Driver pendukung tambahan untuk menstabilkan eksploitasi kernel atau memanipulasi registry keamanan sistem.',
                 md5: 'cf7cad39407d8cd93135be42b6bd258f',
                 sha256: 'bd1f381e5a3db22e88776b7873d4d2835e9a1ec620571d2b1da0c58f81c84a56'
             },
             'edrkiller': {
                 title: 'EDRKiller.exe',
-                badge: 'MALICIOUS ORCHESTRATOR',
-                desc: 'Payload utama yang mengoordinasikan BYOVD. Menggunakan timestomping (Juni 2025).',
+                badge: 'The Orchestrator',
+                desc: 'Payload utama yang mengoordinasikan BYOVD. Menggunakan timestomping (Juni 2025) untuk mengelabui forensik.',
                 md5: '1305e8b0f9c459d5ed85e7e474fbebb1',
                 sha256: '12fcde06ddadf1b48a61b12596e6286316fd33e850687fe4153dfd9383f0a4a0'
             }
         };
 
-        function showIocData(id) {
-            document.querySelectorAll('.ioc-btn').forEach(btn => {
-                btn.classList.remove('active', 'bg-red-600', 'text-white');
-                btn.classList.add('bg-white', 'text-slate-700');
-            });
-
-            const targetBtn = document.getElementById('btn-' + id);
-            if (targetBtn) {
-                targetBtn.classList.add('active', 'bg-red-600', 'text-white');
-            }
+        function showIoc(id) {
+            document.querySelectorAll('.ioc-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('btn-' + id).classList.add('active');
 
             const data = iocData[id];
             if (!data) return;
@@ -445,28 +503,17 @@ DeviceImageLoadEvents | where FileName =~ "rwdrv.sys"
             document.getElementById('panel-sha256').innerText = data.sha256;
         }
 
-        function switchEdr(id) {
+        function switchTab(vendor) {
             document.querySelectorAll('.edr-tab').forEach(t => {
                 t.classList.remove('active');
-                t.classList.add('text-slate-500');
+                t.classList.add('text-slate-400');
             });
-            const activeTab = document.getElementById('tab-' + id);
-            if (activeTab) {
-                activeTab.classList.add('active');
-                activeTab.classList.remove('text-slate-500');
-            }
-
-            ['edr-s1', 'edr-cs', 'edr-ms'].forEach(sec => {
-                const el = document.getElementById(sec);
-                if (el) el.classList.add('hidden');
-            });
+            const activeTab = document.getElementById('tab-' + vendor);
+            activeTab.classList.add('active');
+            activeTab.classList.remove('text-slate-400');
             
-            const activeContent = document.getElementById('edr-' + id);
-            if (activeContent) activeContent.classList.remove('hidden');
-        }
-
-        window.onload = function() {
-            showIocData('msimg32');
+            ['s1', 'cs', 'ms'].forEach(v => document.getElementById('content-' + v).classList.add('hidden'));
+            document.getElementById('content-' + vendor).classList.remove('hidden');
         }
     </script>
 </body>
